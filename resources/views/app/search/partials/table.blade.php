@@ -42,6 +42,17 @@
                 </td>
                 <td class="meta text-pale small text-condensed">{!! $link->addedAt() !!}</td>
                 <td class="text-end">
+                    <button type="submit" form="link-delete-{{ $link->id }}" title="@lang('linkace.delete')"
+                        class="btn btn-xs btn-link text-condensed">
+                        <x-icon.trash class="fw text-danger"/>
+                        <span class="visually-hidden">@lang('linkace.delete')</span>
+                    </button>
+                    <form id="link-delete-{{ $link->id }}" method="POST" style="display: none;"
+                        action="{{ route('links.destroy', [$link->id]) }}">
+                        @method('DELETE')
+                        @csrf
+                        <input type="hidden" name="redirect_back" value="true">
+                    </form>
                     <input type="checkbox" aria-label="@lang('')" class="bulk-edit-model form-check d-inline-block"
                         data-id="{{ $link->id }}">
                 </td>

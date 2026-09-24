@@ -52,6 +52,7 @@ export default class BulkEdit {
         this.selectedModels.push($model.dataset.id);
         $model.checked = true;
       });
+      this.toggleHeader();
     }
   }
 

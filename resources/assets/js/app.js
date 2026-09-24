@@ -8,6 +8,7 @@ import Base from './components/Base';
 import BookmarkTimer from './components/BookmarkTimer';
 import BulkEdit from './components/BulkEdit';
 import DatabaseSetup from './components/Setup';
+import DuplicateDeletion from './components/DuplicateDeletion';
 import GenerateCronToken from './components/GenerateCronToken';
 import Import from './components/Import';
 import LoadingButton from './components/LoadingButton';
@@ -28,6 +29,7 @@ function registerViews () {
   register('.bm-timer', BookmarkTimer);
   register('.bulk-edit', BulkEdit);
   register('.database-setup', DatabaseSetup);
+  register('.duplicates-page', DuplicateDeletion);
   register('.cron-token', GenerateCronToken);
   register('.import-form', Import);
   register('.share-toggle', ShareToggleAll);

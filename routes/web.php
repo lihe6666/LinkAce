@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\App\ApiTokenController;
 use App\Http\Controllers\App\BookmarkletController;
 use App\Http\Controllers\App\DashboardController;
+use App\Http\Controllers\App\DuplicateController;
 use App\Http\Controllers\App\ExportController;
 use App\Http\Controllers\App\FeedController;
 use App\Http\Controllers\App\ImportController;
@@ -117,6 +118,9 @@ Route::group(['middleware' => ['auth']], function () {
 
     Route::get('search', [SearchController::class, 'search'])
         ->name('get-search');
+
+    Route::get('duplicates', [DuplicateController::class, 'index'])
+        ->name('get-duplicates');
 
     Route::get('import', [ImportController::class, 'form'])
         ->name('import-form');

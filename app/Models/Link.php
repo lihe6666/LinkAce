@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -293,6 +294,74 @@ class Link extends Model implements Auditable
             ->where('id', '<>', $this->id)
             ->where('url', 'like', '%' . trim($uri, '/') . '%')
             ->get();
+    }
+
+    /**
+     * Build a normalized duplicate key for the link URL, used for deduplication.
+     * The key consists of a possible auth, the hostname, a port if present, the
+     * path and the query parameters. The scheme, fragments and trailing slashes
+     * are dumped, so that e.g. https://example.com/path?x=1 and
+     * http://example.com/path?x=1 are treated as duplicates, while a differing
+     * query string is treated as a different link.
+     *
+     * If the host is not present, the URL might be broken, so no key is
+     * generated.
+     *
+     * @return string|null
+     */
+    public function normalizedDuplicateKey(): ?string
+    {
+        $parsed = parse_url($this->url);
+
+        if (!isset($parsed['host'])) {
+            return null;
+        }
+
+        $auth = $parsed['user'] ?? '';
+        $auth .= isset($parsed['pass']) ? ':' . $parsed['pass'] : '';
+
+        $uri = $auth ? $auth . '@' : '';
+        $uri .= $parsed['host'];
+        $uri .= isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $uri .= $parsed['path'] ?? '';
+        $uri .= isset($parsed['query']) ? '?' . $parsed['query'] : '';
+
+        return trim($uri, '/');
+    }
+
+    /**
+     * Return a map of all duplicate link groups for the current user, keyed by
+     * their normalized duplicate key and containing the related link IDs. Only
+     * groups with at least two links are returned, ordered by group size
+     * descending.
+     *
+     * @return SupportCollection
+     */
+    public static function duplicateGroupIds(): SupportCollection
+    {
+        $groups = collect();
+
+        self::visibleForUser()
+            ->select(['id', 'url'])
+            ->chunkById(500, function (Collection $links) use (&$groups) {
+                foreach ($links as $link) {
+                    $key = $link->normalizedDuplicateKey();
+
+                    if ($key === null) {
+                        continue;
+                    }
+
+                    if (!$groups->has($key)) {
+                        $groups->put($key, collect());
+                    }
+
+                    $groups->get($key)->push($link->id);
+                }
+            });
+
+        return $groups
+            ->filter(fn (SupportCollection $ids) => $ids->count() > 1)
+            ->sortByDesc(fn (SupportCollection $ids) => $ids->count());
     }
 
     public function searchableAs(): string

@@ -52,6 +52,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="{{ route('get-duplicates') }}" class="nav-link" title="@lang('duplicates.duplicates')">
+                        <x-icon.copy class="fw"/>
+                        <span class="visually-hidden">@lang('duplicates.duplicates')</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ route('get-trash') }}" class="nav-link" title="@lang('trash.trash')">
                         <x-icon.trash class="fw"/>
                         <span class="visually-hidden">@lang('trash.trash')</span>
@@ -146,6 +152,15 @@
                     <span class="d-sm-none">
                         <x-icon.search class="fw"/>
                         <span class="visually-hidden">@lang('search.search')</span>
+                    </span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ route('get-duplicates') }}" class="nav-link pe-3" title="@lang('duplicates.duplicates')">
+                    <span class="d-none d-sm-inline">@lang('duplicates.duplicates')</span>
+                    <span class="d-sm-none">
+                        <x-icon.copy class="fw"/>
+                        <span class="visually-hidden">@lang('duplicates.duplicates')</span>
                     </span>
                 </a>
             </li>

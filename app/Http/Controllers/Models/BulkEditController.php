@@ -102,6 +102,11 @@ class BulkEditController extends Controller
             'tags' => 'tag.bulk_delete_success'
         };
         flash(trans($message, ['success' => $successCount, 'selected' => $models->count()]));
+
+        if ($request->boolean('redirect_back')) {
+            return redirect()->back();
+        }
+
         return redirect()->route($type . '.index');
     }
 }

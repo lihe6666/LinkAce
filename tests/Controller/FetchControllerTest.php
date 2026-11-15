@@ -25,6 +25,14 @@ class FetchControllerTest extends TestCase
         $this->actingAs($user);
     }
 
+    protected function tearDown(): void
+    {
+        putenv('LLM_API_KEY');
+        unset($_ENV['LLM_API_KEY'], $_SERVER['LLM_API_KEY']);
+
+        parent::tearDown();
+    }
+
     public function test_tags_query(): void
     {
         Tag::factory()->create(['name' => 'testTag']); // must be found
@@ -235,5 +243,47 @@ class FetchControllerTest extends TestCase
         // an unresolvable host must be rejected, not silently allowed through.
         $response->assertOk();
         $this->assertNull($response->json('keywords'), 'Expected the private-IP protection to block this request, but it failed open and the fake HTTP response was returned.');
+    }
+
+    public function test_ai_tags_endpoint_returns_tags(): void
+    {
+        $this->setAiKey('test');
+
+        Http::fake([
+            '*' => Http::response([
+                'choices' => [
+                    ['message' => ['content' => json_encode(['tags' => ['docker', 'devops']])]],
+                ],
+            ]),
+        ]);
+
+        $this->post('fetch/ai-tags', ['title' => 'Docker', 'url' => 'https://example.com'])
+            ->assertOk()
+            ->assertJson(['tags' => ['docker', 'devops']]);
+    }
+
+    public function test_ai_tags_endpoint_returns_error_without_api_key(): void
+    {
+        $this->setAiKey('');
+
+        $this->post('fetch/ai-tags', ['title' => 'Docker'])->assertStatus(503);
+    }
+
+    public function test_ai_tags_endpoint_returns_error_when_the_ai_fails(): void
+    {
+        $this->setAiKey('test');
+
+        Http::fake(function () {
+            throw new \Exception('boom');
+        });
+
+        $this->post('fetch/ai-tags', ['title' => 'Docker'])->assertStatus(502);
+    }
+
+    private function setAiKey(string $key): void
+    {
+        putenv('LLM_API_KEY=' . $key);
+        $_ENV['LLM_API_KEY'] = $key;
+        $_SERVER['LLM_API_KEY'] = $key;
     }
 }

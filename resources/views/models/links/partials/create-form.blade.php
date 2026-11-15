@@ -78,7 +78,15 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label" for="tags">@lang('tag.tags')</label>
+                        <div class="d-flex align-items-center mb-2">
+                            <label class="form-label mb-0" for="tags">@lang('tag.tags')</label>
+                            <button type="button" class="btn btn-xs btn-outline-primary ms-auto"
+                                data-ai-tags
+                                data-loading-label="@lang('tag.ai_loading')"
+                                data-error-label="@lang('tag.ai_failed')">
+                                @lang('tag.ai_tag')
+                            </button>
+                        </div>
                         <input name="tags" id="tags" type="text" placeholder="@lang('placeholder.tags_select')"
                             class="tag-select" data-tag-data="{{ $all_tags->toJson() }}"
                             data-value="{{ Link::oldTaxonomyOutputWithoutLink('tags', $bookmark_tags ?? []) }}"

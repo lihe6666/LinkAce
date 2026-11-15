@@ -47,5 +47,8 @@ return [
     'merge_all_confirm' => '确定让 AI 查找同义标签并立即合并？可能需要一点时间。',
     'merged_all_successfully' => '已合并 :count 组标签。',
     'merge_ai_failed' => 'AI 无法完成标签分组，本次未合并任何标签。',
+    'ai_tag' => 'AI 打标签',
+    'ai_loading' => '生成中…',
+    'ai_failed' => 'AI 打标签失败。',
     'merge_ai_not_configured' => '未配置 AI API Key（LLM_API_KEY）。',
 ];

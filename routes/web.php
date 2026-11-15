@@ -168,6 +168,9 @@ Route::group(['middleware' => ['auth']], function () {
         ->name('fetch-tags');
     Route::post('fetch/lists', [FetchController::class, 'getLists'])
         ->name('fetch-lists');
+    Route::post('fetch/ai-tags', [FetchController::class, 'getAiTags'])
+        ->middleware('throttle:10,1')
+        ->name('fetch-ai-tags');
     Route::post('fetch/existing-links', [FetchController::class, 'searchExistingUrls'])
         ->name('fetch-existing-links');
     Route::post('fetch/keywords-for-url', [FetchController::class, 'htmlKeywordsFromUrl'])

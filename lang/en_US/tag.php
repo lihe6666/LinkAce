@@ -48,5 +48,8 @@ return [
     'merge_all_confirm' => 'Let the AI find synonymous tags and merge them now? This can take a moment.',
     'merged_all_successfully' => 'Merged :count tag group(s).',
     'merge_ai_failed' => 'The AI could not group your tags. Nothing was merged.',
+    'ai_tag' => 'AI tag suggestions',
+    'ai_loading' => 'Generating…',
+    'ai_failed' => 'AI tagging failed.',
     'merge_ai_not_configured' => 'No AI API key is configured (LLM_API_KEY).',
 ];

@@ -5,6 +5,7 @@ import Tooltip from 'bootstrap/js/dist/tooltip';
 import { register } from './lib/views';
 import Base from './components/Base';
 
+import AiTagsButton from './components/AiTagsButton';
 import BookmarkTimer from './components/BookmarkTimer';
 import BulkEdit from './components/BulkEdit';
 import DatabaseSetup from './components/Setup';
@@ -27,6 +28,7 @@ function registerViews () {
       super(element, Tooltip);
     }
   });
+  register('[data-ai-tags]', AiTagsButton);
   register('.bm-timer', BookmarkTimer);
   register('.bulk-edit', BulkEdit);
   register('.database-setup', DatabaseSetup);

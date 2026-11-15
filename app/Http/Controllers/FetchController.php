@@ -6,8 +6,10 @@ use App\Helper\UpdateHelper;
 use App\Models\Link;
 use App\Models\LinkList;
 use App\Models\Tag;
+use App\Services\LinkAiTagger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Masterminds\HTML5;
 use Kovah\HtmlMeta\Exceptions\DisallowedIpException;
 use Kovah\HtmlMeta\Exceptions\InvalidUrlException;
@@ -87,6 +89,49 @@ class FetchController extends Controller
             'editLink' => $link ? route('links.edit', ['link' => $link]) : null,
             'restoreLink' => route('trash-restore'),
         ]);
+    }
+
+    public function getAiTags(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'url' => ['nullable', 'string', 'max:2048'],
+            'description' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $apiKey = (string) env('LLM_API_KEY');
+
+        if ($apiKey === '') {
+            return response()->json(['error' => 'AI is not configured.'], 503);
+        }
+
+        $existingTags = Tag::byUser()
+            ->withCount('links')
+            ->orderByDesc('links_count')
+            ->limit(300)
+            ->pluck('name')
+            ->all();
+
+        $tagger = new LinkAiTagger(
+            $apiKey,
+            rtrim((string) (env('LLM_BASE_URL') ?: 'https://api.deepseek.com'), '/'),
+            (string) (env('LLM_MODEL') ?: 'deepseek-chat'),
+        );
+
+        try {
+            $tags = $tagger->tags(
+                $validated['title'] ?? '',
+                $validated['url'] ?? '',
+                $validated['description'] ?? '',
+                $existingTags,
+            );
+        } catch (\Exception $e) {
+            Log::warning('AI tagging for a link failed: ' . $e->getMessage());
+
+            return response()->json(['error' => 'AI tagging failed.'], 502);
+        }
+
+        return response()->json(['tags' => $tags]);
     }
 
     public static function checkForUpdates(): JsonResponse

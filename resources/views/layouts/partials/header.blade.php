@@ -20,6 +20,7 @@
         'fetch' => [
             'searchLists' => route('fetch-lists'),
             'searchTags' => route('fetch-tags'),
+            'aiTags' => route('fetch-ai-tags'),
             'existingLinks' => route('fetch-existing-links'),
             'keywordsForUrl' => route('fetch-keywords-for-url'),
             'updateCheck' => route('fetch-update-check'),

@@ -1,5 +1,6 @@
 /node_modules
 /logs
+/docs/plans
 /public/hot
 /public/build
 /public/storage

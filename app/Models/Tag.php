@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection as SupportCollection;
 use Laravel\Scout\Searchable;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -102,77 +101,8 @@ class Tag extends Model implements Auditable
 
     /*
      * ========================================================================
-     * SIMILARITY / MERGING
+     * NAME SIMILARITY
      */
-
-    /**
-     * Return groups of tags with similar names for the given user. Only groups
-     * with at least two tags are returned, ordered by group size descending.
-     * Each group is ordered by link count descending, so the first tag is the
-     * natural merge survivor. A null user ID returns groups across all users.
-     */
-    public static function similarGroups(?int $userId = null): SupportCollection
-    {
-        if ($userId === null && auth()->check()) {
-            $userId = auth()->id();
-        }
-
-        $query = self::query()
-            ->withCount(['links as links_count' => fn (Builder $query) => $query->visibleForUser()]);
-
-        if ($userId !== null) {
-            $query->byUser($userId);
-        }
-
-        $remaining = $query->get(['id', 'user_id', 'name', 'visibility', 'created_at'])
-            ->sortByDesc(fn (Tag $tag) => $tag->links_count)
-            ->values()
-            ->all();
-
-        // Greedy grouping: a tag joins a group only when it is similar to every
-        // member, so a generic tag like "web" cannot chain unrelated tags
-        // together through transitivity.
-        $groups = [];
-
-        while ($remaining !== []) {
-            $seed = array_shift($remaining);
-            $cluster = [$seed];
-
-            foreach ($remaining as $index => $candidate) {
-                if (count($cluster) >= self::MAX_SIMILAR_GROUP_SIZE) {
-                    break;
-                }
-
-                $fits = true;
-                foreach ($cluster as $member) {
-                    if (! self::namesSimilar($member->name, $candidate->name)) {
-                        $fits = false;
-                        break;
-                    }
-                }
-
-                if ($fits) {
-                    $cluster[] = $candidate;
-                    unset($remaining[$index]);
-                }
-            }
-
-            if (count($cluster) > 1) {
-                $groups[] = $cluster;
-            }
-        }
-
-        return SupportCollection::make($groups)
-            ->map(fn (array $group) => collect($group)->values())
-            ->sortByDesc(fn (SupportCollection $group) => $group->count())
-            ->values();
-    }
-
-    /**
-     * Maximum number of tags in one merge group; keeps a generic tag from
-     * dragging in a whole cluster of related but distinct tags.
-     */
-    public const MAX_SIMILAR_GROUP_SIZE = 10;
 
     /**
      * Determine whether two tag names refer to the same meaning: identical

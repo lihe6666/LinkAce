@@ -30,61 +30,70 @@ class TagsMergeSimilarTest extends TestCase
         $general = Tag::factory()->create(['user_id' => $this->user->id, 'name' => '云服务']);
         $specific = Tag::factory()->create(['user_id' => $this->user->id, 'name' => '云服务器']);
 
-        $link = Link::factory()->create([
-            'user_id' => $this->user->id,
-            'description' => 'A page about cloud servers',
-        ]);
-
+        $link = Link::factory()->create(['user_id' => $this->user->id]);
         $general->links()->attach($link->id);
         $specific->links()->attach($link->id);
     }
 
-    private function fakeJudge(bool $verdict): void
+    private function fakeAi(array $groups, array $verdicts): void
     {
-        Http::fake([
-            '*' => Http::response([
+        Http::fake(function ($request) use ($groups, $verdicts) {
+            $system = $request->data()['messages'][0]['content'] ?? '';
+
+            $content = str_contains($system, 'deduplicator')
+                ? json_encode(['groups' => $groups], JSON_UNESCAPED_UNICODE)
+                : json_encode(['verdicts' => $verdicts]);
+
+            return Http::response([
                 'choices' => [
-                    ['message' => ['content' => json_encode(['verdicts' => ['0' => $verdict]])]],
+                    ['message' => ['content' => $content]],
                 ],
-            ]),
-        ]);
+            ]);
+        });
     }
 
-    public function test_command_merges_when_ai_confirms_same_meaning(): void
+    public function test_command_merges_the_groups_returned_by_the_ai(): void
     {
         $this->createSimilarTags();
-        $this->fakeJudge(true);
+        $this->fakeAi([['云服务', '云服务器']], [0 => true]);
 
-        $this->artisan('tags:merge-similar', ['--key' => 'test'])
-            ->expectsOutputToContain('Merged');
+        $this->artisan('tags:merge-similar', ['--key' => 'test', '--user' => $this->user->id]);
 
         $this->assertSoftDeleted(Tag::withTrashed()->where('name', '云服务器')->first());
         $this->assertSame(1, Tag::where('name', '云服务')->count());
     }
 
-    public function test_command_keeps_tags_when_ai_says_different(): void
+    public function test_command_keeps_groups_rejected_by_the_ai(): void
     {
         $this->createSimilarTags();
-        $this->fakeJudge(false);
+        $this->fakeAi([['云服务', '云服务器']], [0 => false]);
 
-        $this->artisan('tags:merge-similar', ['--key' => 'test'])
-            ->expectsOutputToContain('kept apart');
+        $this->artisan('tags:merge-similar', ['--key' => 'test', '--user' => $this->user->id]);
 
-        $this->assertDatabaseCount('tags', 2);
+        $this->assertSame(2, Tag::count());
     }
 
     public function test_command_merges_nothing_on_dry_run(): void
     {
         $this->createSimilarTags();
-        $this->fakeJudge(true);
+        $this->fakeAi([['云服务', '云服务器']], [0 => true]);
 
-        $this->artisan('tags:merge-similar', ['--key' => 'test', '--dry-run' => true])
-            ->expectsOutputToContain('Would merge');
+        $this->artisan('tags:merge-similar', ['--key' => 'test', '--user' => $this->user->id, '--dry-run' => true]);
 
-        $this->assertDatabaseCount('tags', 2);
+        $this->assertSame(2, Tag::count());
     }
 
-    public function test_command_falls_back_when_ai_unreachable(): void
+    public function test_command_ignores_names_that_are_not_in_the_tag_list(): void
+    {
+        $this->createSimilarTags();
+        $this->fakeAi([['云服务', '不存在的标签']], [0 => true]);
+
+        $this->artisan('tags:merge-similar', ['--key' => 'test', '--user' => $this->user->id]);
+
+        $this->assertSame(2, Tag::count());
+    }
+
+    public function test_command_fails_without_merging_when_the_ai_is_unavailable(): void
     {
         $this->createSimilarTags();
 
@@ -92,9 +101,9 @@ class TagsMergeSimilarTest extends TestCase
             throw new \Exception('boom');
         });
 
-        $this->artisan('tags:merge-similar', ['--key' => 'test'])
-            ->expectsOutputToContain('AI judge unavailable');
+        $this->artisan('tags:merge-similar', ['--key' => 'test', '--user' => $this->user->id])
+            ->expectsOutputToContain('AI grouping failed');
 
-        $this->assertDatabaseCount('tags', 2);
+        $this->assertSame(2, Tag::count());
     }
 }

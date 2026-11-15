@@ -100,8 +100,6 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('tags', TagController::class)->where(['tag' => '[0-9]+']);
     Route::get('tags/merge', [TagMergeController::class, 'index'])
         ->name('tags.merge.index');
-    Route::post('tags/merge', [TagMergeController::class, 'merge'])
-        ->name('tags.merge');
     Route::post('tags/merge/all', [TagMergeController::class, 'mergeAll'])
         ->name('tags.merge.all');
     Route::resource('notes', NoteController::class)->except(['index', 'show', 'create']);

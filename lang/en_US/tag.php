@@ -42,15 +42,11 @@ return [
     'deletion_error' => 'Tag could not be moved to the trash.',
 
     'merge_similar' => 'Merge Similar Tags',
-    'no_similar_tags' => 'No similar tags found.',
-    'similar_tag_count' => ':count similar tag|:count similar tags',
-    'merge_hint' => 'Pick the tag to keep, merge the others into it.',
-    'merge_keep' => 'Keep :name as the surviving tag',
-    'merge_selected' => 'Merge selected',
-    'merge_confirm' => 'Merge the selected tags? The other tags are deleted and their links are moved to the kept tag.',
-    'merge_all' => 'Merge all groups',
-    'merge_all_confirm' => 'Merge all similar groups? Every group keeps its tag with the most links.',
-    'merged_successfully' => 'Tags merged successfully.',
+    'merge_intro' => 'The AI scans all your tags, groups the ones with the same meaning and merges them. '
+        . 'Each group keeps its tag with the most links. This can take a moment.',
+    'merge_all' => 'Find and merge similar tags',
+    'merge_all_confirm' => 'Let the AI find synonymous tags and merge them now? This can take a moment.',
     'merged_all_successfully' => 'Merged :count tag group(s).',
-    'links' => 'Links',
+    'merge_ai_failed' => 'The AI could not group your tags. Nothing was merged.',
+    'merge_ai_not_configured' => 'No AI API key is configured (LLM_API_KEY).',
 ];

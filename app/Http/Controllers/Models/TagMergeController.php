@@ -44,4 +44,27 @@ class TagMergeController extends Controller
 
         return redirect()->route('tags.merge.index');
     }
+
+    public function mergeAll(): RedirectResponse
+    {
+        $merged = 0;
+
+        foreach (Tag::similarGroups() as $group) {
+            $survivor = $group->first();
+            $victims = $group->slice(1);
+
+            $this->authorize('update', $survivor);
+
+            foreach ($victims as $victim) {
+                $this->authorize('delete', $victim);
+            }
+
+            TagRepository::merge($survivor, $victims);
+            $merged++;
+        }
+
+        flash(trans('tag.merged_all_successfully', ['count' => $merged]), 'success');
+
+        return redirect()->route('tags.merge.index');
+    }
 }

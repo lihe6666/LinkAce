@@ -8,6 +8,15 @@
             <h3 class="mb-0">
                 @lang('tag.merge_similar')
             </h3>
+            @if($groups->isNotEmpty())
+                <form method="POST" action="{{ route('tags.merge.all') }}" class="ms-auto">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('{{ trans('tag.merge_all_confirm') }}')">
+                        @lang('tag.merge_all')
+                    </button>
+                </form>
+            @endif
         </header>
 
         @if($groups->isEmpty())

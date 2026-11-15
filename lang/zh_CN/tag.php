@@ -48,6 +48,9 @@ return [
     'merge_keep' => '保留 :name 作为合并后的标签',
     'merge_selected' => '合并所选标签',
     'merge_confirm' => '确定合并所选标签？其他标签将被删除，其链接会转移到保留的标签上。',
+    'merge_all' => '合并全部',
+    'merge_all_confirm' => '确定合并全部相似标签组？每组保留链接最多的标签。',
     'merged_successfully' => '标签合并成功。',
+    'merged_all_successfully' => '已合并 :count 组标签。',
     'links' => '个链接',
 ];

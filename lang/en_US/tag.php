@@ -48,6 +48,9 @@ return [
     'merge_keep' => 'Keep :name as the surviving tag',
     'merge_selected' => 'Merge selected',
     'merge_confirm' => 'Merge the selected tags? The other tags are deleted and their links are moved to the kept tag.',
+    'merge_all' => 'Merge all groups',
+    'merge_all_confirm' => 'Merge all similar groups? Every group keeps its tag with the most links.',
     'merged_successfully' => 'Tags merged successfully.',
+    'merged_all_successfully' => 'Merged :count tag group(s).',
     'links' => 'Links',
 ];

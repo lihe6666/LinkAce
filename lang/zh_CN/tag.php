@@ -40,4 +40,14 @@ return [
     'updated_successfully' => '已更新标签。',
     'deleted_successfully' => '标签成功转移到垃圾桶。',
     'deletion_error' => '标签无法移至垃圾桶。',
+
+    'merge_similar' => '合并相似标签',
+    'no_similar_tags' => '没有找到相似标签。',
+    'similar_tag_count' => ':count 个相似标签',
+    'merge_hint' => '选择要保留的标签，将其余标签合并进去。',
+    'merge_keep' => '保留 :name 作为合并后的标签',
+    'merge_selected' => '合并所选标签',
+    'merge_confirm' => '确定合并所选标签？其他标签将被删除，其链接会转移到保留的标签上。',
+    'merged_successfully' => '标签合并成功。',
+    'links' => '个链接',
 ];

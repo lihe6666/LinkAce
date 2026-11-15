@@ -40,4 +40,14 @@ return [
     'updated_successfully' => 'Tag updated successfully.',
     'deleted_successfully' => 'Tag successfully moved to the trash.',
     'deletion_error' => 'Tag could not be moved to the trash.',
+
+    'merge_similar' => 'Merge Similar Tags',
+    'no_similar_tags' => 'No similar tags found.',
+    'similar_tag_count' => ':count similar tag|:count similar tags',
+    'merge_hint' => 'Pick the tag to keep, merge the others into it.',
+    'merge_keep' => 'Keep :name as the surviving tag',
+    'merge_selected' => 'Merge selected',
+    'merge_confirm' => 'Merge the selected tags? The other tags are deleted and their links are moved to the kept tag.',
+    'merged_successfully' => 'Tags merged successfully.',
+    'links' => 'Links',
 ];

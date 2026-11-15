@@ -6,6 +6,7 @@ use App\Models\Link;
 use App\Models\Tag;
 use Exception;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class TagRepository
@@ -66,6 +67,55 @@ class TagRepository
         }
 
         return true;
+    }
+
+    /**
+     * Merge the victim tags into the survivor: all their links are attached
+     * to the survivor (skipping existing combinations) and the victims are
+     * deleted. The survivor keeps its name and visibility.
+     */
+    public static function merge(Tag $survivor, Collection $victims): Tag
+    {
+        $affectedLinks = collect();
+
+        DB::transaction(function () use ($survivor, $victims, &$affectedLinks): void {
+            foreach ($victims as $victim) {
+                if ($victim->is($survivor)) {
+                    continue;
+                }
+
+                $linkIds = DB::table('link_tags')
+                    ->where('tag_id', $victim->id)
+                    ->pluck('link_id');
+
+                if ($linkIds->isNotEmpty()) {
+                    $existing = DB::table('link_tags')
+                        ->where('tag_id', $survivor->id)
+                        ->whereIn('link_id', $linkIds)
+                        ->pluck('link_id');
+
+                    $linkIds->diff($existing)
+                        ->chunk(500)
+                        ->each(fn (Collection $chunk) => DB::table('link_tags')->insert(
+                            $chunk->map(fn ($linkId) => ['tag_id' => $survivor->id, 'link_id' => $linkId])->all()
+                        ));
+
+                    $affectedLinks = $affectedLinks->merge($linkIds);
+                }
+
+                DB::table('link_tags')->where('tag_id', $victim->id)->delete();
+
+                if (! self::delete($victim)) {
+                    throw new Exception('Could not delete tag ' . $victim->id . ' during merge.');
+                }
+            }
+        });
+
+        self::syncLinksToSearch(
+            $affectedLinks->unique()->map(fn ($id) => Link::find($id))->filter()
+        );
+
+        return $survivor;
     }
 
     private static function syncTagToSearch(Tag $tag): void

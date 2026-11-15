@@ -5,8 +5,9 @@ namespace App\Console\Commands;
 use App\Enums\ModelAttribute;
 use App\Models\Link;
 use App\Models\Tag;
-use GuzzleHttp\Client;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class AiTagLinks extends Command
@@ -54,8 +55,6 @@ Examples:
   # Long jobs: run in background (as the web user)
   sudo -u www bash -lc "nohup php artisan links:ai-tag --only-missing > storage/logs/ai-tag.log 2>&1 &"';
 
-    protected Client $client;
-
     protected string $apiKey;
 
     protected string $baseUrl;
@@ -83,12 +82,6 @@ Examples:
         $this->info("API: {$this->baseUrl} (model: {$this->model})");
         $this->info("Tag mode: {$this->mode}");
 
-        $this->client = new Client([
-            'base_uri' => $this->baseUrl . '/',
-            'timeout' => 120,
-            'connect_timeout' => 10,
-        ]);
-
         $links = $this->getLinks();
 
         if ($links->isEmpty()) {
@@ -101,29 +94,35 @@ Examples:
 
         $processed = 0;
         $tagged = 0;
+        $vocabs = collect();
 
         foreach ($links->chunk($batch) as $chunk) {
-            $tagsMap = $this->requestTags($chunk);
+            foreach ($chunk->groupBy('user_id') as $userId => $userLinks) {
+                $vocab = $vocabs->get($userId) ?? $this->getVocab((int) $userId);
+                $vocabs->put((int) $userId, $vocab);
 
-            foreach ($chunk as $link) {
-                $processed++;
-                $tags = $tagsMap[(string) $link->id] ?? [];
+                $tagsMap = $this->requestTags($userLinks, $vocab->pluck('name')->all());
 
-                if (empty($tags)) {
-                    $this->line("  [{$link->id}] {$link->shortTitle(40)} -> (no tags)");
-                    continue;
+                foreach ($userLinks as $link) {
+                    $processed++;
+                    $tags = $tagsMap[(string) $link->id] ?? [];
+
+                    if (empty($tags)) {
+                        $this->line("  [{$link->id}] {$link->shortTitle(40)} -> (no tags)");
+                        continue;
+                    }
+
+                    $this->line("  [{$link->id}] {$link->shortTitle(40)} -> " . implode(', ', $tags));
+
+                    if (! $this->option('dry-run')) {
+                        $this->applyTags($link, $tags, $vocab);
+                    }
+
+                    $tagged++;
                 }
 
-                $this->line("  [{$link->id}] {$link->shortTitle(40)} -> " . implode(', ', $tags));
-
-                if (! $this->option('dry-run')) {
-                    $this->applyTags($link, $tags);
-                }
-
-                $tagged++;
+                $this->info("Progress: {$processed}/{$links->count()} links, {$tagged} tagged");
             }
-
-            $this->info("Progress: {$processed}/{$links->count()} links, {$tagged} tagged");
         }
 
         $this->info('Done.');
@@ -149,7 +148,20 @@ Examples:
         return $query->get(['id', 'user_id', 'url', 'title', 'description']);
     }
 
-    protected function requestTags($links): array
+    /**
+     * The user's existing tags, most used first, reused to keep the AI from
+     * inventing near-duplicate tag names.
+     */
+    protected function getVocab(int $userId): Collection
+    {
+        return Tag::byUser($userId)
+            ->withCount('links')
+            ->orderByDesc('links_count')
+            ->limit(300)
+            ->get(['id', 'user_id', 'name']);
+    }
+
+    protected function requestTags($links, array $existingTags = []): array
     {
         $items = $links->map(function (Link $link) {
             return [
@@ -164,10 +176,17 @@ Examples:
 
         $userPrompt = 'Classify the following links:' . "\n" . json_encode($items, JSON_UNESCAPED_UNICODE);
 
+        if ($existingTags !== []) {
+            $userPrompt = 'Existing tags for this user (reuse one of these names verbatim when it fits; only invent a new tag when none fits): '
+                . implode(', ', $existingTags) . "\n" . $userPrompt;
+        }
+
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             try {
-                $response = $this->client->post('chat/completions', [
-                    'json' => [
+                $response = Http::baseUrl($this->baseUrl)
+                    ->timeout(120)
+                    ->withToken($this->apiKey)
+                    ->post('chat/completions', [
                         'model' => $this->model,
                         'messages' => [
                             ['role' => 'system', 'content' => $systemPrompt],
@@ -175,13 +194,9 @@ Examples:
                         ],
                         'response_format' => ['type' => 'json_object'],
                         'temperature' => 0.3,
-                    ],
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . $this->apiKey,
-                    ],
-                ]);
+                    ]);
 
-                $body = json_decode($response->getBody()->getContents(), true);
+                $body = $response->json();
                 $content = $body['choices'][0]['message']['content'] ?? '';
 
                 return $this->parseTags($content, $items);
@@ -221,7 +236,7 @@ Examples:
         return $result;
     }
 
-    protected function applyTags(Link $link, array $tags): void
+    protected function applyTags(Link $link, array $tags, ?Collection $vocab = null): void
     {
         $tagIds = [];
         foreach ($tags as $name) {
@@ -230,10 +245,17 @@ Examples:
                 continue;
             }
 
-            $tag = Tag::firstOrCreate(
-                ['user_id' => $link->user_id, 'name' => $name],
-                ['user_id' => $link->user_id, 'name' => $name, 'visibility' => ModelAttribute::VISIBILITY_PUBLIC],
-            );
+            // Reuse an existing tag when the AI output matches one already in use
+            $tag = $vocab?->first(fn (Tag $t) => Tag::namesSimilar($t->name, $name));
+
+            if (! $tag) {
+                $tag = Tag::firstOrCreate(
+                    ['user_id' => $link->user_id, 'name' => $name],
+                    ['user_id' => $link->user_id, 'name' => $name, 'visibility' => ModelAttribute::VISIBILITY_PUBLIC],
+                );
+
+                $vocab?->push($tag);
+            }
 
             $tagIds[] = $tag->id;
         }

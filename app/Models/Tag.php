@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Laravel\Scout\Searchable;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -97,6 +98,161 @@ class Tag extends Model implements Auditable
     public function links(): BelongsToMany
     {
         return $this->belongsToMany(Link::class, 'link_tags', 'tag_id', 'link_id');
+    }
+
+    /*
+     * ========================================================================
+     * SIMILARITY / MERGING
+     */
+
+    /**
+     * Return groups of tags with similar names for the given user. Only groups
+     * with at least two tags are returned, ordered by group size descending.
+     * Each group is ordered by link count descending, so the first tag is the
+     * natural merge survivor. A null user ID returns groups across all users.
+     */
+    public static function similarGroups(?int $userId = null): SupportCollection
+    {
+        if ($userId === null && auth()->check()) {
+            $userId = auth()->id();
+        }
+
+        $query = self::query()
+            ->withCount(['links as links_count' => fn (Builder $query) => $query->visibleForUser()]);
+
+        if ($userId !== null) {
+            $query->byUser($userId);
+        }
+
+        $remaining = $query->get(['id', 'user_id', 'name', 'visibility', 'created_at'])
+            ->sortByDesc(fn (Tag $tag) => $tag->links_count)
+            ->values()
+            ->all();
+
+        // Greedy grouping: a tag joins a group only when it is similar to every
+        // member, so a generic tag like "web" cannot chain unrelated tags
+        // together through transitivity.
+        $groups = [];
+
+        while ($remaining !== []) {
+            $seed = array_shift($remaining);
+            $cluster = [$seed];
+
+            foreach ($remaining as $index => $candidate) {
+                if (count($cluster) >= self::MAX_SIMILAR_GROUP_SIZE) {
+                    break;
+                }
+
+                $fits = true;
+                foreach ($cluster as $member) {
+                    if (! self::namesSimilar($member->name, $candidate->name)) {
+                        $fits = false;
+                        break;
+                    }
+                }
+
+                if ($fits) {
+                    $cluster[] = $candidate;
+                    unset($remaining[$index]);
+                }
+            }
+
+            if (count($cluster) > 1) {
+                $groups[] = $cluster;
+            }
+        }
+
+        return SupportCollection::make($groups)
+            ->map(fn (array $group) => collect($group)->values())
+            ->sortByDesc(fn (SupportCollection $group) => $group->count())
+            ->values();
+    }
+
+    /**
+     * Maximum number of tags in one merge group; keeps a generic tag from
+     * dragging in a whole cluster of related but distinct tags.
+     */
+    public const MAX_SIMILAR_GROUP_SIZE = 10;
+
+    /**
+     * Determine whether two tag names refer to the same meaning: identical
+     * after normalization, a slightly longer version of each other, or at
+     * most one character apart for longer names. Short ASCII names only
+     * match exactly, otherwise "ai", "ui" and "api" would all be grouped.
+     */
+    public static function namesSimilar(string $a, string $b): bool
+    {
+        $a = self::normalizeName($a);
+        $b = self::normalizeName($b);
+
+        if ($a === '' || $b === '') {
+            return false;
+        }
+
+        if ($a === $b) {
+            return true;
+        }
+
+        $aLength = mb_strlen($a);
+        $bLength = mb_strlen($b);
+        $shorter = min($aLength, $bLength);
+
+        if ($shorter < 3) {
+            return false;
+        }
+
+        $hasNonAscii = preg_match('/[^\x00-\x7F]/u', $a . $b) === 1;
+
+        if (mb_strpos($a, $b) !== false || mb_strpos($b, $a) !== false) {
+            return abs($aLength - $bLength) <= 2 && ($shorter >= 4 || $hasNonAscii);
+        }
+
+        return $shorter >= 6 && self::characterDistance($a, $b) <= 1;
+    }
+
+    protected static function normalizeName(string $name): string
+    {
+        return preg_replace('/\s+/u', '', mb_strtolower(trim($name)));
+    }
+
+    /**
+     * Levenshtein distance on a per-character basis, so multi-byte names
+     * (e.g. Chinese) are measured in characters instead of bytes.
+     */
+    protected static function characterDistance(string $a, string $b): int
+    {
+        $a = mb_str_split($a);
+        $b = mb_str_split($b);
+        $aLength = count($a);
+        $bLength = count($b);
+
+        if ($aLength === 0) {
+            return $bLength;
+        }
+
+        if ($bLength === 0) {
+            return $aLength;
+        }
+
+        $previous = range(0, $bLength);
+
+        for ($i = 1; $i <= $aLength; $i++) {
+            $current = [$i];
+
+            for ($j = 1; $j <= $bLength; $j++) {
+                $cost = $a[$i - 1] === $b[$j - 1] ? 0 : 1;
+
+                $current[$j] = min(
+                    $previous[$j] + 1,
+                    $current[$j - 1] + 1,
+                    $previous[$j - 1] + $cost,
+                );
+            }
+
+            $previous = $current;
+        }
+
+        return $previous[$bLength];
     }
 
     public function searchableAs(): string

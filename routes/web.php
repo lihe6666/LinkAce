@@ -29,6 +29,7 @@ use App\Http\Controllers\Models\LinkController;
 use App\Http\Controllers\Models\ListController;
 use App\Http\Controllers\Models\NoteController;
 use App\Http\Controllers\Models\TagController;
+use App\Http\Controllers\Models\TagMergeController;
 use App\Http\Controllers\Models\UserController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\Setup\AccountController;
@@ -97,6 +98,10 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('links', LinkController::class)->where(['link' => '[0-9]+']);
     Route::resource('lists', ListController::class)->where(['list' => '[0-9]+']);
     Route::resource('tags', TagController::class)->where(['tag' => '[0-9]+']);
+    Route::get('tags/merge', [TagMergeController::class, 'index'])
+        ->name('tags.merge.index');
+    Route::post('tags/merge', [TagMergeController::class, 'merge'])
+        ->name('tags.merge');
     Route::resource('notes', NoteController::class)->except(['index', 'show', 'create']);
 
     Route::post('bulk-edit', [BulkEditController::class, 'form'])

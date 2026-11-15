@@ -53,6 +53,19 @@ class TagMergeControllerTest extends TestCase
         $this->assertSame(1, $survivor->fresh()->links()->count());
     }
 
+    public function test_merge_endpoint_accepts_survivor_in_victims(): void
+    {
+        $survivor = Tag::factory()->create(['user_id' => $this->user->id, 'name' => '云服务']);
+        $victim = Tag::factory()->create(['user_id' => $this->user->id, 'name' => '云服务器']);
+
+        $this->post('tags/merge', [
+            'survivor' => $survivor->id,
+            'victims' => [$survivor->id, $victim->id],
+        ])->assertRedirect(route('tags.merge.index'));
+
+        $this->assertSoftDeleted($victim);
+    }
+
     public function test_merge_endpoint_rejects_other_users_tags(): void
     {
         $otherUser = User::factory()->create();

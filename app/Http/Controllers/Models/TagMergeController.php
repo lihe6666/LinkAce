@@ -26,7 +26,7 @@ class TagMergeController extends Controller
         $validated = $request->validate([
             'survivor' => ['required', 'integer', 'exists:tags,id'],
             'victims' => ['required', 'array'],
-            'victims.*' => ['integer', 'exists:tags,id', 'different:survivor'],
+            'victims.*' => ['integer', 'exists:tags,id'],
         ]);
 
         $survivor = Tag::findOrFail($validated['survivor']);

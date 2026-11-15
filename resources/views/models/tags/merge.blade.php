@@ -74,6 +74,12 @@
                 </form>
             @endforeach
 
+            @if($paginator->hasPages())
+                <div class="mt-4">
+                    {!! $paginator->onEachSide(1)->withQueryString()->links() !!}
+                </div>
+            @endif
+
         @endif
 
     </div>

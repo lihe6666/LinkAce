@@ -8,6 +8,7 @@ use App\Repositories\TagRepository;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TagMergeController extends Controller
 {
@@ -15,9 +16,23 @@ class TagMergeController extends Controller
     {
         $this->authorize('viewAny', Tag::class);
 
+        $groups = Tag::similarGroups();
+
+        $perPage = 20;
+        $page = max(1, (int) request()->input('page', 1));
+
+        $paginator = new LengthAwarePaginator(
+            $groups->forPage($page, $perPage)->values(),
+            $groups->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url()]
+        );
+
         return view('models.tags.merge', [
             'pageTitle' => trans('tag.merge_similar'),
-            'groups' => Tag::similarGroups(),
+            'groups' => $paginator->getCollection(),
+            'paginator' => $paginator,
         ]);
     }
 

@@ -37,6 +37,18 @@ class TagMergeControllerTest extends TestCase
             ->assertSee('云服务器');
     }
 
+    public function test_index_view_paginates_groups(): void
+    {
+        for ($i = 0; $i < 25; $i++) {
+            Tag::factory()->create(['user_id' => $this->user->id, 'name' => 'g' . $i . 'zz']);
+            Tag::factory()->create(['user_id' => $this->user->id, 'name' => 'g' . $i . 'zzy']);
+        }
+
+        $this->get('tags/merge')
+            ->assertOk()
+            ->assertSee('page=2');
+    }
+
     public function test_merge_endpoint_merges_selected_tags(): void
     {
         $survivor = Tag::factory()->create(['user_id' => $this->user->id, 'name' => '云服务']);

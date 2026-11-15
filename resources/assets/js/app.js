@@ -13,6 +13,7 @@ import GenerateCronToken from './components/GenerateCronToken';
 import Import from './components/Import';
 import LoadingButton from './components/LoadingButton';
 import OpenLinksInTabs from './components/OpenLinksInTabs';
+import RecoveryCodes from './components/RecoveryCodes';
 import ShareToggleAll from './components/ShareToggleAll';
 import SimpleSelect from './components/SimpleSelect';
 import TagsSelect from './components/TagsSelect';
@@ -32,6 +33,7 @@ function registerViews () {
   register('.duplicates-page', DuplicateDeletion);
   register('.cron-token', GenerateCronToken);
   register('.import-form', Import);
+  register('.recovery-codes', RecoveryCodes);
   register('.share-toggle', ShareToggleAll);
   register('.simple-select', SimpleSelect);
   register('.tag-select', TagsSelect);
